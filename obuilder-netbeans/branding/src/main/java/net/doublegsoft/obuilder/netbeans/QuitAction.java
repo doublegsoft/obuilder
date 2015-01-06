@@ -42,7 +42,7 @@ import org.openide.awt.ActionRegistration;
 public class QuitAction extends AbstractAction {
     
     /**
-     * @see  AbstractAction#actionPerformed(java.awt.event.ActionEvent) 
+     * @see AbstractAction#actionPerformed(java.awt.event.ActionEvent) 
      */
     @Override
     public void actionPerformed(ActionEvent e) {

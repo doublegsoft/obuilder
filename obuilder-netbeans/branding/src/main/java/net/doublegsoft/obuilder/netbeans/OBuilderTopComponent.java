@@ -27,8 +27,11 @@ import java.awt.event.ActionEvent;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.text.ParseException;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
@@ -46,12 +49,15 @@ import javax.swing.filechooser.FileFilter;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
+import net.doublegsoft.obuilder.MavenRun;
 import net.doublegsoft.obuilder.manifest.BundleInfo;
 import net.doublegsoft.obuilder.manifest.BundleRequirement;
 import net.doublegsoft.obuilder.manifest.ManifestParser;
 import net.doublegsoft.obuilder.manifest.VersionRange;
 import net.doublegsoft.obuilder.search.MavenDependency;
 import net.doublegsoft.obuilder.search.MavenSearcher;
+import net.doublegsoft.obuilder.template.Template;
+import org.openide.util.NbPreferences;
 import org.openide.util.RequestProcessor;
 import org.openide.windows.IOProvider;
 import org.openide.windows.InputOutput;
@@ -60,16 +66,16 @@ import org.openide.windows.TopComponent;
 
 /**
  * It's the main UI for the application to operate.
- * 
+ *
  * @author <a href="mailto:guo.guo.gan@gmail.com">Christian Gann</a>
- * 
+ *
  * @since 1.0
  */
 @TopComponent.Description(preferredID = "OBuilderTopComponent", iconBase = "images/obuilder-16.png",
     persistenceType = TopComponent.PERSISTENCE_ALWAYS)
 @TopComponent.OpenActionRegistration(displayName = "OBuilder", preferredID = "OBuilderTopComponent")
 public class OBuilderTopComponent extends TopComponent {
-    
+
     /**
      * Default IO name for netbeans output window.
      */
@@ -79,48 +85,47 @@ public class OBuilderTopComponent extends TopComponent {
      * Default table cell renderer.
      */
     private static final StateRenderer STATE_RENDERER = new StateRenderer();
-    
+
     /**
      * Searching maven dependencies.
      */
     private final MavenSearcher searcher = new MavenSearcher();
-    
+
     /**
      * The utput directory text field.
      */
     private JTextField outputDir;
-    
+
     /**
      * The choosing output directory button.
      */
     private JButton dirChoose;
-    
+
     /**
      * The bundle jar text field.
      */
     private JTextField jarFile;
-    
+
     /**
      * The choosing bundle jar text field.
      */
     private JButton jarChoose;
-    
+
     /**
      * T build button.
      */
     private JButton build;
-    
+
     /**
      * The table to display artifacts.
      */
     private JTable artifacts;
-    
+
     /**
      * Creates a {@link JPanel} object with {@link FlowLayout} manager.
-     * 
-     * @param components
-     *          the components to layout
-     * 
+     *
+     * @param components the components to layout
+     *
      * @return a new {@link JPanel} object
      */
     private static JPanel flowPane(JComponent... components) {
@@ -130,7 +135,7 @@ public class OBuilderTopComponent extends TopComponent {
         }
         return retVal;
     }
-    
+
     /**
      * Default constructor.
      */
@@ -139,7 +144,7 @@ public class OBuilderTopComponent extends TopComponent {
         setDisplayName("OBuilder");
         initialize();
     }
-    
+
     /**
      * Initializes UI.
      */
@@ -182,10 +187,10 @@ public class OBuilderTopComponent extends TopComponent {
 
         IOProvider.getDefault().getIO(IO_NAME, false).select();
     }
-    
+
     /**
      * Gets the output directory text field lazily.
-     * 
+     *
      * @return the output directory text field
      */
     private JTextField getOutputDirTextField() {
@@ -196,10 +201,10 @@ public class OBuilderTopComponent extends TopComponent {
         }
         return outputDir;
     }
-    
+
     /**
      * Gets the jar file text field lazily.
-     * 
+     *
      * @return the jar file text field
      */
     private JTextField getJarFileTextField() {
@@ -210,10 +215,10 @@ public class OBuilderTopComponent extends TopComponent {
         }
         return jarFile;
     }
-    
+
     /**
      * Gets the choosing output directory button lazily.
-     * 
+     *
      * @return the choosing output directory button
      */
     private JButton getDirChooseButton() {
@@ -224,10 +229,10 @@ public class OBuilderTopComponent extends TopComponent {
         }
         return dirChoose;
     }
-    
+
     /**
      * Gets the choosing jar file button lazily.
-     * 
+     *
      * @return the choosing jar file button
      */
     private JButton getJarChooseButton() {
@@ -238,24 +243,25 @@ public class OBuilderTopComponent extends TopComponent {
         }
         return jarChoose;
     }
-    
+
     /**
      * Gets the build button lazily.
-     * 
-     * @return the build button 
+     *
+     * @return the build button
      */
     private JButton getBuildButton() {
         if (build == null) {
             build = new JButton();
+            build.setAction(new BuildAction());
             build.setText("Build");
         }
         return build;
     }
-    
+
     /**
      * Gets the artifacts table lazily.
-     * 
-     * @return the artifacts table 
+     *
+     * @return the artifacts table
      */
     private JTable getArtifactsTable() {
         if (artifacts == null) {
@@ -287,21 +293,20 @@ public class OBuilderTopComponent extends TopComponent {
         }
         return artifacts;
     }
-    
+
     /**
      * Gets the artifacts table model.
-     * 
+     *
      * @return the artifacts table model.
      */
     private DefaultTableModel getArtifactsModel() {
         return (DefaultTableModel) getArtifactsTable().getModel();
     }
-    
+
     /**
      * Logs the informative message.
-     * 
-     * @param message 
-     *          any informative message
+     *
+     * @param message any informative message
      */
     private void info(String message) {
         InputOutput io = IOProvider.getDefault().getIO(IO_NAME, false);
@@ -311,12 +316,11 @@ public class OBuilderTopComponent extends TopComponent {
             out.flush();
         }
     }
-    
+
     /**
      * Logs the exception.
-     * 
-     * @param cause 
-     *          any exception
+     *
+     * @param cause any exception
      */
     private void error(Throwable cause) {
         InputOutput io = IOProvider.getDefault().getIO(IO_NAME, false);
@@ -325,12 +329,11 @@ public class OBuilderTopComponent extends TopComponent {
             out.flush();
         }
     }
-    
+
     /**
      * Logs the error message.
-     * 
-     * @param message 
-     *          any error message
+     *
+     * @param message any error message
      */
     private void error(String message) {
         InputOutput io = IOProvider.getDefault().getIO(IO_NAME, false);
@@ -339,38 +342,66 @@ public class OBuilderTopComponent extends TopComponent {
             out.flush();
         }
     }
-    
+
+    private int buildSingle(MavenDependency dep, String exportPackages, File destin) throws IOException, InterruptedException {
+        Template tpl = new Template();
+        MavenRun run = new MavenRun();
+        Map<String, Object> data = new HashMap<>();
+        data.put("groupId", dep.getGroupId());
+        data.put("artifactId", dep.getArtifactId());
+        data.put("version", dep.getVersion());
+        data.put("bundleId", dep.getArtifactId());
+        data.put("exportPackages", exportPackages);
+        File pom = tpl.output(new File(destin, "tmp"), data);
+        String mavenHome = NbPreferences.forModule(OBuilderOptionsPane.class).get("maven.home", "");
+        return run.run(mavenHome, pom, (str) -> {
+            info(str);
+        });
+    }
+
+    private void resetStateValue(int state, int start, int end, String bundle) {
+        for (int i = start; i <= end; ++i) {
+            StateValue sv = (StateValue) getArtifactsModel().getValueAt(i, 0);
+            if (i == start) {
+                sv.setState(state);
+            } else {
+                sv.setState(StateValue.SKIP);
+            }
+            if (state == StateValue.SUCCESS) {
+                sv.setBundle(bundle);
+            }
+        }
+    }
+
     /**
      * The action to choose file or directory.
      */
     private class ChooseAction extends AbstractAction {
-        
+
         /**
          * The text field to diplay result.
          */
         private final JTextField display;
-        
+
         /**
          * The file filter.
          */
         private final FileFilter filter;
-        
+
         /**
          * Creates an action instance.
-         * 
-         * @param display
-         *          the text field to display choosing result
-         * 
-         * @param filter 
-         *          file fileter to apply
+         *
+         * @param display the text field to display choosing result
+         *
+         * @param filter file fileter to apply
          */
         public ChooseAction(JTextField display, FileFilter filter) {
             this.display = display;
             this.filter = filter;
         }
-        
+
         /**
-         * @see AbstractAction#actionPerformed(java.awt.event.ActionEvent) 
+         * @see AbstractAction#actionPerformed(java.awt.event.ActionEvent)
          */
         @Override
         public void actionPerformed(ActionEvent e) {
@@ -399,63 +430,108 @@ public class OBuilderTopComponent extends TopComponent {
                     } catch (IOException | ParseException ex) {
                         error(ex);
                     }
-                    OBuilderStatusBar.STATUS.setIcon(StateRenderer.PROCESSING);
-                    Set<MavenDependency> deps = new HashSet<>();
-                    RequestProcessor.getDefault().execute(() -> {
-                        int index = 0;
-                        while (index != getArtifactsModel().getRowCount()) {
-                            StateValue sv = (StateValue) getArtifactsModel().getValueAt(index, 0);
-                            String ip = (String) getArtifactsModel().getValueAt(index, 1);
-                            OBuilderStatusBar.STATUS.setText(ip);
-                            try {
-                                MavenDependency dep = searcher.search(ip, (VersionRange) getArtifactsModel().getValueAt(index, 2));
-                                if (dep != null) {
-                                    getArtifactsModel().setValueAt(dep.getGroupId(), index, 3);
-                                    getArtifactsModel().setValueAt(dep.getArtifactId(), index, 4);
-                                    getArtifactsModel().setValueAt(dep.getVersion(), index, 5);
-                                    if (deps.contains(dep)) {
-                                        sv.setState(StateValue.SKIP);
-                                        info("Skipped to process " + ip + ".");
-                                    } else {
-                                        // TODO: BUILD IT BY MAVEN
-                                        sv.setState(StateValue.SUCCESS);
-                                        info("Succeeded to process " + ip + ".");
-                                    }
-                                    deps.add(dep);
-                                } else {
-                                    sv.setState(StateValue.FAILURE);
-                                    error("Failed to process " + ip + ".");
-                                }
-                                
-                            } catch (Exception ex) {
-                                sv.setState(StateValue.FAILURE);
-                                error(ex);
-                            }
-                            index++;
-                            getArtifactsTable().repaint();
-                        }
-                        OBuilderStatusBar.clear();
-                    });
+
                 }
             }
         }
     }
-    
+
+    /**
+     * It's an action to build bundles.
+     */
+    private class BuildAction extends AbstractAction {
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            String strDir = getOutputDirTextField().getText();
+            if (strDir == null) {
+                return;
+            }
+            File destin = new File(strDir);
+            OBuilderStatusBar.STATUS.setIcon(StateRenderer.PROCESSING);
+            Map<MavenDependency, Integer[]> deps = new HashMap<>();
+            RequestProcessor.getDefault().execute(() -> {
+                int index = 0;
+                MavenDependency prev = null;
+                String exportPackages = "";
+                while (index != getArtifactsModel().getRowCount()) {
+                    String ip = (String) getArtifactsModel().getValueAt(index, 1);
+                    OBuilderStatusBar.STATUS.setText("Searching jar for " + ip);
+                    try {
+                        MavenDependency dep = searcher.search(ip, (VersionRange) getArtifactsModel().getValueAt(index, 2));
+                        if (dep != null) {
+                            getArtifactsModel().setValueAt(dep.getGroupId(), index, 3);
+                            getArtifactsModel().setValueAt(dep.getArtifactId(), index, 4);
+                            getArtifactsModel().setValueAt(dep.getVersion(), index, 5);
+                            if (deps.containsKey(dep)) {
+                                if (exportPackages.length() > 0) {
+                                    exportPackages += ",";
+                                }
+                                deps.put(dep, new Integer[]{deps.get(dep)[0], index});
+                            } else {
+                                if (prev != null) {
+                                    // build previous bundle
+                                    OBuilderStatusBar.STATUS.setText("Building bundle for " + exportPackages);
+                                    if (buildSingle(prev, exportPackages, destin) == 0) {
+                                        String name = prev.getArtifactId() + "-bundle-" + prev.getVersion() + ".jar";
+                                        Files.copy(new File(destin, "tmp/target/" + name).toPath(), new File(destin, name).toPath(), 
+                                            StandardCopyOption.REPLACE_EXISTING);
+                                        resetStateValue(StateValue.SUCCESS, deps.get(prev)[0], deps.get(prev)[1], name);
+                                        info("Succeeded to process " + exportPackages + ".");
+                                    } else {
+                                        resetStateValue(StateValue.FAILURE, deps.get(prev)[0], deps.get(prev)[1], null);
+                                        error("Failed to process " + exportPackages + ".");
+                                    }
+                                    exportPackages = "";
+                                }
+                                deps.put(dep, new Integer[]{index, index});
+                            }
+                            exportPackages += ip + ".*";
+                        } else {
+                            resetStateValue(StateValue.FAILURE, index, index, null);
+                            error("Failed to process " + ip + ".");
+                        }
+                        if (index == getArtifactsModel().getRowCount() - 1) {
+                            if (buildSingle(prev, exportPackages, destin) == 0) {
+                                String name = prev.getArtifactId() + "-bundle-" + prev.getVersion() + ".jar";
+                                Files.copy(new File(destin, "/tmp/target/" + name).toPath(), new File(destin, name).toPath());
+                                resetStateValue(StateValue.SUCCESS, deps.get(prev)[0], deps.get(prev)[1], name);
+                                info("Succeeded to process " + exportPackages + ".");
+                            } else {
+                                resetStateValue(StateValue.FAILURE, deps.get(prev)[0], deps.get(prev)[1], null);
+                                error("Failed to process " + exportPackages + ".");
+                            }
+                        }
+                        prev = dep;
+                    } catch (Exception ex) {
+                        resetStateValue(StateValue.FAILURE, index, index, null);
+                        error("Failed to process " + ip + ". Caused by: ");
+                        error(ex);
+                    }
+                    index++;
+                    getArtifactsTable().repaint();
+                }
+                OBuilderStatusBar.clear();
+            });
+        }
+
+    }
+
     /**
      * The file filter to choose jar file only.
      */
     private static class JarFilter extends FileFilter {
-        
+
         /**
-         * @see FileFilter#accept(java.io.File) 
+         * @see FileFilter#accept(java.io.File)
          */
         @Override
         public boolean accept(File f) {
             return f.isDirectory() || f.getName().indexOf(".jar") == f.getName().length() - 4;
         }
-        
+
         /**
-         * @see FileFilter#getDescription() 
+         * @see FileFilter#getDescription()
          */
         @Override
         public String getDescription() {
@@ -463,29 +539,29 @@ public class OBuilderTopComponent extends TopComponent {
         }
 
     }
-    
+
     /**
      * The file filter to choose directory only.
      */
     private static class DirFilter extends FileFilter {
-        
+
         /**
-         * @see FileFilter#accept(java.io.File) 
+         * @see FileFilter#accept(java.io.File)
          */
         @Override
         public boolean accept(File f) {
             return f.isDirectory();
         }
-        
+
         /**
-         * @see FileFilter#getDescription() 
+         * @see FileFilter#getDescription()
          */
         @Override
         public String getDescription() {
             return null;
         }
     }
-    
+
     /**
      * The table cell renderer to render the first column cells in the {@link #artifacts} table.
      */
@@ -496,21 +572,22 @@ public class OBuilderTopComponent extends TopComponent {
         private static final ImageIcon SUCCESS = new ImageIcon(StateRenderer.class.getClassLoader().getResource("images/success-16.png"));
 
         private static final ImageIcon FAILURE = new ImageIcon(StateRenderer.class.getClassLoader().getResource("images/failure-16.png"));
-        
+
         private static final ImageIcon SKIP = new ImageIcon(StateRenderer.class.getClassLoader().getResource("images/skip-16.png"));
-        
+
         /**
          * The container to display
          */
         private JPanel container;
-        
+
         /**
          * The label in the {@link #container}
          */
         private JLabel bundle;
-        
+
         /**
-         * @see DefaultTableCellRenderer#getTableCellRendererComponent(javax.swing.JTable, java.lang.Object, boolean, boolean, int, int) 
+         * @see DefaultTableCellRenderer#getTableCellRendererComponent(javax.swing.JTable, java.lang.Object, boolean,
+         * boolean, int, int)
          */
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -520,12 +597,11 @@ public class OBuilderTopComponent extends TopComponent {
             }
             return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
         }
-        
+
         /**
          * Changes the icon according to the state value.
-         * 
-         * @param val 
-         *          a new value
+         *
+         * @param val a new value
          */
         public void changeState(StateValue val) {
             if (val == null) {
@@ -534,7 +610,6 @@ public class OBuilderTopComponent extends TopComponent {
             if (val.getState() == StateValue.PROCESSING) {
                 getBundle().setIcon(PROCESSING);
             } else if (val.getState() == StateValue.SUCCESS) {
-                getBundle().setText(val.getBundle());
                 getBundle().setIcon(SUCCESS);
             } else if (val.getState() == StateValue.FAILURE) {
                 getBundle().setIcon(FAILURE);
@@ -543,11 +618,12 @@ public class OBuilderTopComponent extends TopComponent {
             } else {
                 getBundle().setIcon(null);
             }
+            getBundle().setText(val.getBundle());
         }
-        
+
         /**
          * Gets the container.
-         * 
+         *
          * @return the real display component.
          */
         private JPanel getContainer() {
@@ -558,10 +634,10 @@ public class OBuilderTopComponent extends TopComponent {
             }
             return container;
         }
-        
+
         /**
          * Gets the label in the {@link #container}.
-         * 
+         *
          * @return the label component
          */
         private JLabel getBundle() {

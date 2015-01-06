@@ -2,13 +2,13 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" 
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
-  http://maven.apache.org/xsd/maven-4.0.0.xsd"
->
+  http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    
     <modelVersion>4.0.0</modelVersion>
  
-    <groupId>org.slf4j</groupId>
-    <artifactId>slf4j-api</artifactId>
-    <version>1.7.9</version>
+    <groupId>$groupId$</groupId>
+    <artifactId>$artifactId$-bundle</artifactId>
+    <version>$version$</version>
     <packaging>bundle</packaging> <!-- we want to produce an OSGi bundle -->
  
     <properties>
@@ -18,9 +18,9 @@
     <dependencies>
         <!-- specify the dependency you want to wrap as OSGi bundle -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-    <artifactId>slf4j-api</artifactId>
-    <version>1.7.9</version>
+            <groupId>$groupId$</groupId>
+            <artifactId>$artifactId$</artifactId>
+            <version>$version$</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -35,9 +35,7 @@
                 <configuration>
                     <instructions>
                         <!-- export the packages that should be externally accessible -->
-                        <Export-Package>org.slf4j.*</Export-Package>
-                        <!-- list other packages that should be included in your bundle -->
-                        <Private-Package>com.sun.*</Private-Package>
+                        <Export-Package>$exportPackages$</Export-Package>
                     </instructions>
                 </configuration>
             </plugin>
