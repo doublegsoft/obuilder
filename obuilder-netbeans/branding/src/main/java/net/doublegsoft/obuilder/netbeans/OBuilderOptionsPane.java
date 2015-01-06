@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 ganguo.
+ * Copyright 2015 doublegsoft.net.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,34 +25,52 @@ import javax.swing.JTextField;
 import org.openide.util.NbPreferences;
 
 /**
- *
+ * It's the options setting for the application.
+ * 
  * @author <a href="mailto:guo.guo.gan@gmail.com">Christian Gann</a>
+ * 
+ * @since 1.0
  */
 public class OBuilderOptionsPane extends JPanel {
     
-    private final OBuilderOptionsPaneController controller;
-    
+    /**
+     * maven home text field.
+     */
     private JTextField maven;
     
-    public OBuilderOptionsPane(OBuilderOptionsPaneController controller) {
-        this.controller = controller;
+    /**
+     * Default constructor.
+     */
+    public OBuilderOptionsPane() {
         initialize();
     }
     
-    
-    
+    /**
+     * Invoked when loading this panel.
+     */
     void load() {
         getMavenTextField().setText(NbPreferences.forModule(OBuilderOptionsPane.class).get("maven.home", ""));
     }
     
+    /**
+     * Invoked to store option settings.
+     */
     void store() {
         NbPreferences.forModule(OBuilderOptionsPane.class).put("maven.home", getMavenTextField().getText());
     }
     
+    /**
+     * Checks the option settings is valid.
+     * 
+     * @return always {@code true}
+     */
     boolean valid() {
         return true;
     }
     
+    /**
+     * Initialize this panel UI.
+     */
     private void initialize() {
         setLayout(new GridBagLayout());  
         GridBagConstraints gbc = new GridBagConstraints();  
@@ -66,6 +84,11 @@ public class OBuilderOptionsPane extends JPanel {
         add(getMavenTextField(), gbc);  
     }
     
+    /**
+     * Gets maven text field lazily.
+     * 
+     * @return maven home text field
+     */
     private JTextField getMavenTextField() {
         if (maven == null) {
             maven = new JTextField();

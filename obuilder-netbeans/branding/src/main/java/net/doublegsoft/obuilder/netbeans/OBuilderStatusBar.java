@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 ganguo.
+ * Copyright 2015 doublegsoft.net.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,23 +22,35 @@ import org.openide.awt.StatusLineElementProvider;
 import org.openide.util.lookup.ServiceProvider;
 
 /**
- *
- * @author ganguo
+ * It's customized status bar to display processing progress.
+ * 
+ * @author <a href="mailto:guo.guo.gan@gmail.com">Christian Gann</a>
+ * 
+ * @since 1.0
  */
 @ServiceProvider(service=StatusLineElementProvider.class)
 public class OBuilderStatusBar implements StatusLineElementProvider {
     
+    /**
+     * The real component to display on status bar.
+     */
     public static final JLabel STATUS = new JLabel();
     
     static {
         STATUS.setHorizontalTextPosition(SwingConstants.LEFT);
     }
     
+    /**
+     * @see StatusLineElementProvider#getStatusLineElement() 
+     */
     @Override
     public Component getStatusLineElement() {
         return STATUS;
     }
     
+    /**
+     * Clears the content.
+     */
     public static void clear() {
         STATUS.setIcon(null);
         STATUS.setText(null);

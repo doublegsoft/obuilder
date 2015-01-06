@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 ganguo.
+ * Copyright 2015 doublegsoft.net.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,11 @@ import org.openide.awt.ActionReferences;
 import org.openide.awt.ActionRegistration;
 
 /**
- *
- * @author ganguo
+ * It's a default action when clicking OBuilder icon in the UI.
+ * 
+ * @author <a href="guo.guo.gan@gmail.com">Christian Gann</a>
+ * 
+ * @since 1.0
  */
 @ActionID(
     category = "File",
@@ -36,12 +39,21 @@ import org.openide.awt.ActionRegistration;
     @ActionReference(path = "Toolbars/OBuilderToolbar", position = 2)
 })
 public class DisplayAction extends AbstractAction {
-
+    
+    /**
+     * default constructor.
+     */
     public DisplayAction() {
         putValue("iconBase", "images/obuilder-32.png");
         putValue(NAME, "OBuilder");
     }
-
+    
+    /**
+     * @see AbstractAction#actionPerformed(java.awt.event.ActionEvent)
+     * 
+     * @param e 
+     *          action event
+     */
     @Override
     public void actionPerformed(ActionEvent e) {
         OBuilderTopComponent comp = new OBuilderTopComponent();

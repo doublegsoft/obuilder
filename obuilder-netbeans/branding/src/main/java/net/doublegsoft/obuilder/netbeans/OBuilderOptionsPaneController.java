@@ -87,7 +87,7 @@ public class OBuilderOptionsPaneController extends OptionsPanelController {
 
     private OBuilderOptionsPane getPanel() {
         if (panel == null) {
-            panel = new OBuilderOptionsPane(this);
+            panel = new OBuilderOptionsPane();
         }
         return panel;
     }

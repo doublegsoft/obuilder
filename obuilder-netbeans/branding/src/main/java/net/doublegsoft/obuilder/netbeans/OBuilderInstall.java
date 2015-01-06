@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 ganguo.
+ * Copyright 2015 doublegsoft.net.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,28 @@ package net.doublegsoft.obuilder.netbeans;
 
 import java.util.Locale;
 import org.openide.modules.ModuleInstall;
+import org.openide.windows.WindowManager;
 
 /**
- *
- * @author ganguo
+ * It is to initialize default settings for the application working around netbeans default settings.
+ * 
+ * @author <a href="mailto:guo.guo.gan@gmail.com">Christian Gann</a>
+ * 
+ * @since 1.o
  */
 public class OBuilderInstall extends ModuleInstall {
-
+    
+    /**
+     * @see ModuleInstall#restored() 
+     */
     @Override
     public void restored() {
+        // change to defautl locale
         Locale.setDefault(Locale.US);
-        System.out.println("locale reset");
+        // change title to remove timestamp
+        WindowManager.getDefault().invokeWhenUIReady(() -> {
+            WindowManager.getDefault().getMainWindow().setTitle("OBuider V1.0");
+        });
     }
     
 }

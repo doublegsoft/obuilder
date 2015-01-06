@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 ganguo.
+ * Copyright 2015 doublegsoft.net.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,11 @@ import org.openide.awt.ActionReferences;
 import org.openide.awt.ActionRegistration;
 
 /**
- *
- * @author ganguo
+ * The action to quit the application.
+ * 
+ * @author <a href="mailto:guo.guo.gan@gmail.com">Christian Gann</a>
+ * 
+ * @since 1.0
  */
 @ActionID(
     category = "File",
@@ -37,7 +40,10 @@ import org.openide.awt.ActionRegistration;
     @ActionReference(path = "Toolbars/OBuilderToolbar", position = 1)
 })
 public class QuitAction extends AbstractAction {
-
+    
+    /**
+     * @see  AbstractAction#actionPerformed(java.awt.event.ActionEvent) 
+     */
     @Override
     public void actionPerformed(ActionEvent e) {
         LifecycleManager.getDefault().exit();
