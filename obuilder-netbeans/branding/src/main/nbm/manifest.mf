@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+OpenIDE-Module-Localizing-Bundle: net/doublegsoft/obuilder/netbeans/branding/Bundle.properties
+OpenIDE-Module-Layer: net/doublegsoft/obuilder/netbeans/branding/layer.xml
+OpenIDE-Module-Install: net/doublegsoft/obuilder/netbeans/OBuilderInstall.class
+AutoUpdate-Essential-Module: true
