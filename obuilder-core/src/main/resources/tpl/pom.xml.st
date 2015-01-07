@@ -7,7 +7,7 @@
     <modelVersion>4.0.0</modelVersion>
  
     <groupId>$groupId$</groupId>
-    <artifactId>$artifactId$-bundle</artifactId>
+    <artifactId>$bundleId$-bundle</artifactId>
     <version>$version$</version>
     <packaging>bundle</packaging> <!-- we want to produce an OSGi bundle -->
  

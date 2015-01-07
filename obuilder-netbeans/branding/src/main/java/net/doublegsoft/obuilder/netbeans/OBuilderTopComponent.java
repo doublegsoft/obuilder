@@ -30,7 +30,9 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
@@ -343,15 +345,15 @@ public class OBuilderTopComponent extends TopComponent {
         }
     }
 
-    private int buildSingle(MavenDependency dep, String exportPackages, File destin) throws IOException, InterruptedException {
+    private int buildSingle(BundleData bd, File destin) throws IOException, InterruptedException {
         Template tpl = new Template();
         MavenRun run = new MavenRun();
         Map<String, Object> data = new HashMap<>();
-        data.put("groupId", dep.getGroupId());
-        data.put("artifactId", dep.getArtifactId());
-        data.put("version", dep.getVersion());
-        data.put("bundleId", dep.getArtifactId());
-        data.put("exportPackages", exportPackages);
+        data.put("groupId", bd.getDependency().getGroupId());
+        data.put("artifactId", bd.getDependency().getArtifactId());
+        data.put("version", bd.getDependency().getVersion());
+        data.put("bundleId", bd.getExportPackage());
+        data.put("exportPackages", bd.getExportPackages());
         File pom = tpl.output(new File(destin, "tmp"), data);
         String mavenHome = NbPreferences.forModule(OBuilderOptionsPane.class).get("maven.home", "");
         return run.run(mavenHome, pom, (str) -> {
@@ -359,18 +361,19 @@ public class OBuilderTopComponent extends TopComponent {
         });
     }
 
-    private void resetStateValue(int state, int start, int end, String bundle) {
-        for (int i = start; i <= end; ++i) {
-            StateValue sv = (StateValue) getArtifactsModel().getValueAt(i, 0);
-            if (i == start) {
-                sv.setState(state);
-            } else {
-                sv.setState(StateValue.SKIP);
-            }
-            if (state == StateValue.SUCCESS) {
-                sv.setBundle(bundle);
-            }
-        }
+    private void resetStateValue(int state, Set<Integer> indexes, String bundle) {
+        indexes.stream().map((idx) -> (StateValue) getArtifactsModel().getValueAt(idx, 0)).map((sv) -> {
+            sv.setState(state);
+            return sv;
+        }).filter((sv) -> (state == StateValue.SUCCESS)).forEach((sv) -> {
+            sv.setBundle(bundle);
+        });
+    }
+
+    private void resetStateValue(int state, int index, String bundle) {
+        StateValue sv = (StateValue) getArtifactsModel().getValueAt(index, 0);
+        sv.setState(state);
+        sv.setBundle(bundle);
     }
 
     /**
@@ -449,68 +452,65 @@ public class OBuilderTopComponent extends TopComponent {
             }
             File destin = new File(strDir);
             OBuilderStatusBar.STATUS.setIcon(StateRenderer.PROCESSING);
-            Map<MavenDependency, Integer[]> deps = new HashMap<>();
+            Map<MavenDependency, BundleData> deps = new HashMap<>();
+            List<MavenDependency> seqs = new ArrayList<>();
             RequestProcessor.getDefault().execute(() -> {
+                BundleData data = null;
                 int index = 0;
-                MavenDependency prev = null;
-                String exportPackages = "";
                 while (index != getArtifactsModel().getRowCount()) {
                     String ip = (String) getArtifactsModel().getValueAt(index, 1);
-                    OBuilderStatusBar.STATUS.setText("Searching jar for " + ip);
+                    OBuilderStatusBar.STATUS.setText("Searching for " + ip);
                     try {
                         MavenDependency dep = searcher.search(ip, (VersionRange) getArtifactsModel().getValueAt(index, 2));
                         if (dep != null) {
+                            if (deps.containsKey(dep)) {
+                                data = deps.get(dep);
+                            } else {
+                                data = new BundleData();
+                                data.setDependency(dep);
+                                deps.put(dep, data);
+                            }
+                            data.addIndex(index);
+                            data.addExportPackage(ip);
+
                             getArtifactsModel().setValueAt(dep.getGroupId(), index, 3);
                             getArtifactsModel().setValueAt(dep.getArtifactId(), index, 4);
                             getArtifactsModel().setValueAt(dep.getVersion(), index, 5);
-                            if (deps.containsKey(dep)) {
-                                if (exportPackages.length() > 0) {
-                                    exportPackages += ",";
-                                }
-                                deps.put(dep, new Integer[]{deps.get(dep)[0], index});
-                            } else {
-                                if (prev != null) {
-                                    // build previous bundle
-                                    OBuilderStatusBar.STATUS.setText("Building bundle for " + exportPackages);
-                                    if (buildSingle(prev, exportPackages, destin) == 0) {
-                                        String name = prev.getArtifactId() + "-bundle-" + prev.getVersion() + ".jar";
-                                        Files.copy(new File(destin, "tmp/target/" + name).toPath(), new File(destin, name).toPath(), 
-                                            StandardCopyOption.REPLACE_EXISTING);
-                                        resetStateValue(StateValue.SUCCESS, deps.get(prev)[0], deps.get(prev)[1], name);
-                                        info("Succeeded to process " + exportPackages + ".");
-                                    } else {
-                                        resetStateValue(StateValue.FAILURE, deps.get(prev)[0], deps.get(prev)[1], null);
-                                        error("Failed to process " + exportPackages + ".");
-                                    }
-                                    exportPackages = "";
-                                }
-                                deps.put(dep, new Integer[]{index, index});
-                            }
-                            exportPackages += ip + ".*";
+
+                            seqs.add(dep);
                         } else {
-                            resetStateValue(StateValue.FAILURE, index, index, null);
-                            error("Failed to process " + ip + ".");
+                            resetStateValue(StateValue.NOT_FOUND, index, null);
+                            error("Not found " + ip + ".");
                         }
-                        if (index == getArtifactsModel().getRowCount() - 1) {
-                            if (buildSingle(prev, exportPackages, destin) == 0) {
-                                String name = prev.getArtifactId() + "-bundle-" + prev.getVersion() + ".jar";
-                                Files.copy(new File(destin, "/tmp/target/" + name).toPath(), new File(destin, name).toPath());
-                                resetStateValue(StateValue.SUCCESS, deps.get(prev)[0], deps.get(prev)[1], name);
-                                info("Succeeded to process " + exportPackages + ".");
-                            } else {
-                                resetStateValue(StateValue.FAILURE, deps.get(prev)[0], deps.get(prev)[1], null);
-                                error("Failed to process " + exportPackages + ".");
-                            }
-                        }
-                        prev = dep;
                     } catch (Exception ex) {
-                        resetStateValue(StateValue.FAILURE, index, index, null);
+                        resetStateValue(StateValue.FAILURE, index, null);
                         error("Failed to process " + ip + ". Caused by: ");
                         error(ex);
                     }
                     index++;
                     getArtifactsTable().repaint();
                 }
+                seqs.forEach((seq) -> {
+                    BundleData v = deps.get(seq);
+                    OBuilderStatusBar.STATUS.setText("Building bundle for " + v.getExportPackages());
+                    String name = v.getExportPackage() + "-bundle-" + v.getDependency().getVersion() + ".jar";
+                    try {
+                        if (buildSingle(v, destin) == 0) {
+                            Files.copy(new File(destin, "tmp/target/" + name).toPath(), new File(destin, name).toPath(),
+                                StandardCopyOption.REPLACE_EXISTING);
+                            resetStateValue(StateValue.SUCCESS, v.getIndexes(), name);
+                            info("Succeeded to build " + name + ".");
+                        } else {
+                            resetStateValue(StateValue.FAILURE, v.getIndexes(), null);
+                            error("Failed to build " + name + ".");
+                        }
+                    } catch (IOException | InterruptedException ex) {
+                        resetStateValue(StateValue.FAILURE, v.getIndexes(), null);
+                        error("Failed to build " + name + ". Caused by: ");
+                        error(ex);
+                    }
+                    getArtifactsTable().repaint();
+                });
                 OBuilderStatusBar.clear();
             });
         }
@@ -575,6 +575,8 @@ public class OBuilderTopComponent extends TopComponent {
 
         private static final ImageIcon SKIP = new ImageIcon(StateRenderer.class.getClassLoader().getResource("images/skip-16.png"));
 
+        private static final ImageIcon NOT_FOUND = new ImageIcon(StateRenderer.class.getClassLoader().getResource("images/notfound-16.png"));
+
         /**
          * The container to display
          */
@@ -615,6 +617,8 @@ public class OBuilderTopComponent extends TopComponent {
                 getBundle().setIcon(FAILURE);
             } else if (val.getState() == StateValue.SKIP) {
                 getBundle().setIcon(SKIP);
+            } else if (val.getState() == StateValue.NOT_FOUND) {
+                getBundle().setIcon(NOT_FOUND);
             } else {
                 getBundle().setIcon(null);
             }

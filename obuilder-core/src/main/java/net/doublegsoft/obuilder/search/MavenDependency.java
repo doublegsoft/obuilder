@@ -141,7 +141,9 @@ public class MavenDependency {
      */
     @Override
     public int hashCode() {
-        int hash = 5;
+        int hash = 7;
+        hash = 23 * hash + Objects.hashCode(this.groupId);
+        hash = 23 * hash + Objects.hashCode(this.artifactId);
         return hash;
     }
     
@@ -163,10 +165,8 @@ public class MavenDependency {
         if (!Objects.equals(this.artifactId, other.artifactId)) {
             return false;
         }
-        if (!Objects.equals(this.version, other.version)) {
-            return false;
-        }
         return true;
     }
+    
     
 }

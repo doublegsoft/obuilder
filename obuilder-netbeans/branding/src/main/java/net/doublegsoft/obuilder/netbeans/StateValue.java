@@ -45,6 +45,11 @@ public class StateValue {
     public static final int SKIP = 3;
     
     /**
+     * Not found value
+     */
+    public static final int NOT_FOUND = 4;
+    
+    /**
      * The generated bundle name
      */
     private String bundle;
